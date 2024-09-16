@@ -15,7 +15,7 @@ pub fn main() !void {
     const str: []const u8 = "world";
     const timestamp: i64 = std.time.timestamp();
 
-    const current_time: []const u8 = Logger.timestampToDatetime(@constCast(&allocator).*, timestamp);
+    const current_time: []const u8 = Logger.timestampToDatetime(allocator, timestamp);
     defer allocator.free(current_time);
 
     try Log.info("MAIN", "Hello, {s}", .{str});
