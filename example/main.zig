@@ -1,6 +1,10 @@
-const std = @import("std");
-
-const Logger = @import("Logger.zig");
+fn testLogPrefix(allocator: *std.mem.Allocator, log_level: []const u8) []const u8 {
+    const current_time = Logger.timestampToDatetime(allocator.*, std.time.timestamp());
+    const str: []u8 = std.fmt.allocPrint(allocator.*, "{s}: Some Extra Messages!, such as the time: {s}: ", .{ log_level, current_time }) catch {
+        return undefined;
+    };
+    return str;
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -8,14 +12,15 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     try Logger.initializeLogging(@constCast(&allocator), .{ .absolute_path = "/home/isaacwestaway/Documents/zig/zlog/", .file_name = "log" }, .{ .severity = .info });
+    try Logger.installLogPrefix(@constCast(&allocator), &testLogPrefix);
     defer Logger.Log.close();
 
-    const Log = Logger.Log;
+    var Log = Logger.Log;
 
     const str: []const u8 = "world";
     const timestamp: i64 = std.time.timestamp();
 
-    const current_time: []const u8 = Logger.timestampToDatetime(@constCast(&allocator).*, timestamp);
+    const current_time: []const u8 = Logger.timestampToDatetime(allocator, timestamp);
     defer allocator.free(current_time);
 
     try Log.info("MAIN", "Hello, {s}", .{str});
@@ -23,5 +28,5 @@ pub fn main() !void {
     try Log.err("MAIN", "Hello {s}, at {s}", .{ str, current_time });
 
     // Will crash the program upon logging!
-    try Logger.Log.fatal("MAIN", "I am Crashing Now!");
+    // try Logger.Log.fatal("MAIN", "I am Crashing Now!", .{});
 }

@@ -122,9 +122,16 @@ const Logger = struct {
     allocator: std.mem.Allocator,
 
     // Zig callbacks
-    // log_format: []const u8,
-    // log_args_format: type,
+
+    // I couldn't really think of a better way to do this, tried a tagged union, but couldn't really understand some of the problems, feel free to improve this!
+    installed_prefix: bool,
+    /// Callback function which returns a string that will prefix the log message
+    log_prefix: *const fn (allocator: *std.mem.Allocator, log_level: []const u8) []const u8,
+
+    /// The file to write to
     log_file: std.fs.File,
+
+    /// The verbosity of the logger
     log_level: Severity,
 
     // Could this mutex be replaced with std.fs.File.lock()?
@@ -134,9 +141,10 @@ const Logger = struct {
     pub fn close(self: *Logger) void {
         self.log_file.close();
     }
-    // TODO: add struct arguments
     pub fn info(self: *Logger, namespace: []const u8, comptime message: []const u8, args: anytype) !void {
         if (@intFromEnum(self.log_level) > @intFromEnum(Severity.info)) return;
+
+        const log_level: []const u8 = "INFO";
 
         self.access_mutex.lock();
         defer self.access_mutex.unlock();
@@ -148,15 +156,18 @@ const Logger = struct {
         const current_time: i64 = std.time.timestamp();
         const formatted_time: []const u8 = timestampToDatetime(allocator, current_time);
 
+        const prefix: []const u8 = "INFO-{s}-{s}-T{d}:";
+        var zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
+
         const zipped_message: []const u8 = try std.fmt.allocPrint(allocator, message, args);
 
-        // Custom callback prefix shall be defined here
-        // If the custom prefix callback is null then we should resort to this, otherwise, the custom prefix will return a []const u8, and this "string"
-        // will be assigned to zipped_prefix
-        const prefix: []const u8 = "INFO-{s}-{s}-T{d}:";
-        const zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
+        // TODO:, could potentially make the function more generic by requiring less parameters, or anytype
+        if (self.installed_prefix) {
+            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+        }
 
-        const to_write = std.fmt.allocPrint(allocator, "{s} {s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
+        // Could use concat?
+        const to_write = std.fmt.allocPrint(allocator, "{s}{s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
             return the_error;
         };
 
@@ -165,6 +176,8 @@ const Logger = struct {
 
     pub fn warn(self: *Logger, namespace: []const u8, comptime message: []const u8, args: anytype) !void {
         if (@intFromEnum(self.log_level) > @intFromEnum(Severity.warn)) return;
+
+        const log_level: []const u8 = "WARN";
 
         self.access_mutex.lock();
         defer self.access_mutex.unlock();
@@ -179,9 +192,13 @@ const Logger = struct {
         const zipped_message: []const u8 = try std.fmt.allocPrint(allocator, message, args);
 
         const prefix: []const u8 = "WARN-{s}-{s}-T{d}:";
-        const zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
+        var zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
 
-        const to_write = std.fmt.allocPrint(allocator, "{s} {s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
+        if (self.installed_prefix) {
+            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+        }
+
+        const to_write = std.fmt.allocPrint(allocator, "{s}{s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
             return the_error;
         };
 
@@ -190,6 +207,8 @@ const Logger = struct {
 
     pub fn err(self: *Logger, namespace: []const u8, comptime message: []const u8, args: anytype) !void {
         if (@intFromEnum(self.log_level) > @intFromEnum(Severity.err)) return;
+
+        const log_level: []const u8 = "ERROR";
 
         self.access_mutex.lock();
         defer self.access_mutex.unlock();
@@ -204,9 +223,13 @@ const Logger = struct {
         const zipped_message: []const u8 = try std.fmt.allocPrint(allocator, message, args);
 
         const prefix: []const u8 = "ERROR-{s}-{s}-T{d}:";
-        const zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
+        var zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
 
-        const to_write = std.fmt.allocPrint(allocator, "{s} {s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
+        if (self.installed_prefix) {
+            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+        }
+
+        const to_write = std.fmt.allocPrint(allocator, "{s}{s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
             return the_error;
         };
 
@@ -214,20 +237,35 @@ const Logger = struct {
     }
 
     /// Will purposely crash the program if called
-    pub fn fatal(self: *Logger, namespace: []const u8, message: []const u8) !void {
+    pub fn fatal(self: *Logger, namespace: []const u8, comptime message: []const u8, args: anytype) !void {
         if (@intFromEnum(self.log_level) > @intFromEnum(Severity.fatal)) return;
 
         self.access_mutex.lock();
         defer self.access_mutex.unlock();
 
-        const current_time = std.time.timestamp();
-        const formatted_time = self.timestampToDatetime(current_time);
+        const log_level: []const u8 = "FATAL";
 
-        const combined = std.fmt.allocPrint(self.allocator, "FATAL-{s}-{s}: {s}\n", .{ namespace, formatted_time, message }) catch {
-            return;
+        var arena_allocator = std.heap.ArenaAllocator.init(self.allocator);
+        const allocator = arena_allocator.allocator();
+        defer arena_allocator.deinit();
+
+        const current_time = std.time.timestamp();
+        const formatted_time = timestampToDatetime(self.allocator, current_time);
+
+        const prefix: []const u8 = "FATAL-{s}-{s}-T{d}:";
+        var zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
+
+        if (self.installed_prefix) {
+            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+        }
+
+        const zipped_message: []const u8 = try std.fmt.allocPrint(allocator, message, args);
+
+        const to_write = std.fmt.allocPrint(allocator, "{s}{s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
+            return the_error;
         };
 
-        _ = try self.log_file.write(combined);
+        _ = try self.log_file.write(to_write);
 
         std.posix.exit(1);
     }
@@ -235,8 +273,8 @@ const Logger = struct {
 
 pub var Log: Logger = Logger{
     .allocator = undefined,
-    // .log_format = undefined,
-    // .log_args_format = undefined,
+    .installed_prefix = false,
+    .log_prefix = undefined,
     .log_file = undefined,
     .log_level = undefined,
     .access_mutex = std.Thread.Mutex{},
@@ -270,14 +308,14 @@ pub fn initializeLogging(allocator: *std.mem.Allocator, logfile_options: Logfile
         .none => Severity.debug,
     };
 
-    // The log format is how the prefixes will be generated,similar to the custom prefix formatter in glog
-    // currently does nothing
-    // Log.log_format = log_format;
-    // Log.log_args_format = args;
-    // This should be done in another function using a callback, setting the callback function
-
     Log.access_mutex.lock();
     defer Log.access_mutex.unlock();
+}
+
+pub fn installLogPrefix(allocator: *std.mem.Allocator, log_prefix: *const fn (allocator: *std.mem.Allocator, log_level: []const u8) []const u8) !void {
+    _ = allocator;
+    Log.installed_prefix = true;
+    Log.log_prefix = @constCast(&log_prefix).*;
 }
 
 test "LogTimestampTest" {
@@ -291,9 +329,6 @@ test "LogTimestampTest" {
     defer allocator.free(datetime_1);
 
     try std.testing.expect(std.mem.eql(u8, datetime_1, "1978/4/13-14:22:41"));
-
-    // create some custom timestamps, paste it into a unix epoch converter and check if the two strings match
-    // contribute one every time u modify this file to make sure it works well
 }
 
 test "LogOutputTest" {}

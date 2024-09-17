@@ -13,6 +13,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const run_exe = b.addExecutable(.{ .name = "zlog", .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
+
+    b.installArtifact(run_exe);
+
+    const run_cmd = b.addRunArtifact(run_exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
+
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/Logger.zig"),
         .target = target,
