@@ -32,16 +32,19 @@ Usage
 ### Quickstart
 You can get started by initializing the logging file:
 ```zig
+const std = @import("std");
+const zlog = @import("zlog");
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    try Logger.initializeLogging(@constCast(&allocator), 
+    try zlog.initializeLogging(@constCast(&allocator), 
         .{ .absolute_path = "/home/isaacwestaway/Documents/zig/zlog/", .file_name = "log" },
         .{ .severity = .info }
     );
-    defer Logger.Log.close();
+    defer zlog.Log.close();
 }
 ```
 
@@ -49,7 +52,7 @@ And then log a message to the logfile:
 ```zig
 ...
 
-var Log = Logger.Log;
+var Logger = zlog.log;
 
 const str: []const u8 = "world";
 const timestamp: i64 = std.time.timestamp();
@@ -57,12 +60,12 @@ const timestamp: i64 = std.time.timestamp();
 const current_time: []const u8 = Logger.timestampToDatetime(allocator, timestamp);
 defer allocator.free(current_time);
 
-try Log.info("MAIN", "Hello, {s}", .{ str });
-try Log.warn("MAIN", "Current Timestamp: {d}", .{ timestamp} );
-try Log.err("MAIN", "Hello {s}, at {s}", .{ str, current_time });
+try Logger.info("MAIN", "Hello, {s}", .{ str });
+try Logger.warn("MAIN", "Current Timestamp: {d}", .{ timestamp} );
+try Logger.err("MAIN", "Hello {s}, at {s}", .{ str, current_time });
 
 // Will crash the program upon logging!
-try Logger.Log.fatal("MAIN", "I am Crashing Now!", .{});
+try Logger.fatal("MAIN", "I am Crashing Now!", .{});
 ```
 Output:
 ```
@@ -90,14 +93,14 @@ pub fn main() !void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    try Logger.initializeLogging(@constCast(&allocator), 
+    try zlog.initializeLogging(@constCast(&allocator), 
         .{ .absolute_path = "/home/isaacwestaway/Documents/zig/zlog/", .file_name = "log" }, 
         .{ .severity = .info }
     );
-    try Logger.installLogPrefix(@constCast(&allocator), &testLogPrefix);
-    defer Logger.Log.close();
+    try zlog.installLogPrefix(@constCast(&allocator), &testLogPrefix);
+    defer zlog.Log.close();
 
-    var Log = Logger.Log;
+    var Logger = zlog.Log;
 
     const str: []const u8 = "world";
     const timestamp: i64 = std.time.timestamp();
@@ -105,12 +108,12 @@ pub fn main() !void {
     const current_time: []const u8 = Logger.timestampToDatetime(allocator, timestamp);
     defer allocator.free(current_time);
 
-    try Log.info("MAIN", "Hello, {s}", .{str});
-    try Log.warn("MAIN", "Current Timestamp: {d}", .{timestamp});
-    try Log.err("MAIN", "Hello {s}, at {s}", .{ str, current_time });
+    try Logger.info("MAIN", "Hello, {s}", .{str});
+    try Logger.warn("MAIN", "Current Timestamp: {d}", .{timestamp});
+    try Logger.err("MAIN", "Hello {s}, at {s}", .{ str, current_time });
 
     // Will crash the program upon logging!
-    try Logger.Log.fatal("MAIN", "I am Crashing Now!", .{});
+    try Logger.fatal("MAIN", "I am Crashing Now!", .{});
 }
 ```
 
