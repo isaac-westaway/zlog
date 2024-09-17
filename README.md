@@ -22,12 +22,8 @@ zig fetch --save git+https://github.com/isaac-westaway/zlog
 
 Then add the dependency in your `build.zig` file
 ```zig
-const zlog = b.dependency("zlog", .{
-    .target = target,
-    .optimize = optimize
-}).module("zlog");
-
-exe.root_module.addImport(zlog);
+const zlog = b.dependency("zlog", .{ .target = target, .optimize = optimize });
+exe.root_module.addImport("zlog", zlog.module("zlog"));
 ```
 
 Usage
