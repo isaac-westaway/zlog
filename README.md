@@ -81,7 +81,8 @@ FATAL-MAIN-2024/9/17-0:31:57-T250650:I am Crashing Now!
 // The callback must have these two arguments
 fn testLogPrefix(allocator: *std.mem.Allocator, log_level: []const u8) []const u8 {
     const current_time = Logger.timestampToDatetime(allocator.*, std.time.timestamp());
-    const str: []u8 = std.fmt.allocPrint(allocator.*, "{s}: Some Extra Messages!, such as the time: {s}: ", .{ log_level, current_time }) catch {
+    const str: []u8 = std.fmt.allocPrint(allocator.*, "{s}: Some Extra Messages!, such as the time: {s}: ", 
+    .{ log_level, current_time }) catch {
         return undefined;
     };
     return str;
