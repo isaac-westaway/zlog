@@ -52,7 +52,7 @@ And then log a message to the logfile:
 ```zig
 ...
 
-var Logger = zlog.log;
+var Logger = zlog.Log;
 
 const str: []const u8 = "world";
 const timestamp: i64 = std.time.timestamp();
