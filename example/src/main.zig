@@ -1,3 +1,11 @@
+const std = @import("std");
+
+const Logger = @import("zlog");
+
+// Log Level Argument
+// Should Namespace be considered a prefix?
+// TODO:: Could this be made more generic so the user can define their own arguments without having to change the Logger.zig?
+/// Example function which defines the string that should prefix the log messages
 fn testLogPrefix(allocator: *std.mem.Allocator, log_level: []const u8) []const u8 {
     const current_time = Logger.timestampToDatetime(allocator.*, std.time.timestamp());
     const str: []u8 = std.fmt.allocPrint(allocator.*, "{s}: Some Extra Messages!, such as the time: {s}: ", .{ log_level, current_time }) catch {
@@ -9,10 +17,10 @@ fn testLogPrefix(allocator: *std.mem.Allocator, log_level: []const u8) []const u
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = gpa.allocator();
+    var allocator = gpa.allocator();
 
-    try Logger.initializeLogging(@constCast(&allocator), .{ .absolute_path = "/home/isaacwestaway/Documents/zig/zlog/", .file_name = "log" }, .{ .severity = .info });
-    try Logger.installLogPrefix(@constCast(&allocator), &testLogPrefix);
+    try Logger.initializeLogging(&allocator, .{ .absolute_path = "/home/isaacwestaway/Documents/zig/zlog/", .file_name = "log" }, .{ .severity = .info });
+    try Logger.installLogPrefix(&testLogPrefix);
     defer Logger.Log.close();
 
     var Log = Logger.Log;

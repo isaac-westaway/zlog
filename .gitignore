@@ -1,4 +1,7 @@
 .zig-cache
 zig-out
 
-src/main.zig
+example/.zig-ccache
+examples/build.zig.zon
+
+build.zig.zon

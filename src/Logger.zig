@@ -119,7 +119,7 @@ pub fn timestampToDatetime(allocator: std.mem.Allocator, timestamp: i64) []const
 }
 
 const Logger = struct {
-    allocator: std.mem.Allocator,
+    allocator: *std.mem.Allocator,
 
     // Zig callbacks
 
@@ -149,8 +149,8 @@ const Logger = struct {
         self.access_mutex.lock();
         defer self.access_mutex.unlock();
 
-        var arena_allocator = std.heap.ArenaAllocator.init(self.allocator);
-        const allocator = arena_allocator.allocator();
+        var arena_allocator = std.heap.ArenaAllocator.init(self.allocator.*);
+        var allocator = arena_allocator.allocator();
         defer arena_allocator.deinit();
 
         const current_time: i64 = std.time.timestamp();
@@ -163,7 +163,7 @@ const Logger = struct {
 
         // TODO:, could potentially make the function more generic by requiring less parameters, or anytype
         if (self.installed_prefix) {
-            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+            zipped_prefix = self.log_prefix(&allocator, log_level);
         }
 
         // Could use concat?
@@ -182,8 +182,8 @@ const Logger = struct {
         self.access_mutex.lock();
         defer self.access_mutex.unlock();
 
-        var arena_allocator = std.heap.ArenaAllocator.init(self.allocator);
-        const allocator = arena_allocator.allocator();
+        var arena_allocator = std.heap.ArenaAllocator.init(self.allocator.*);
+        var allocator = arena_allocator.allocator();
         defer arena_allocator.deinit();
 
         const current_time = std.time.timestamp();
@@ -195,7 +195,7 @@ const Logger = struct {
         var zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
 
         if (self.installed_prefix) {
-            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+            zipped_prefix = self.log_prefix(&allocator, log_level);
         }
 
         const to_write = std.fmt.allocPrint(allocator, "{s}{s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
@@ -213,8 +213,8 @@ const Logger = struct {
         self.access_mutex.lock();
         defer self.access_mutex.unlock();
 
-        var arena_allocator = std.heap.ArenaAllocator.init(self.allocator);
-        const allocator = arena_allocator.allocator();
+        var arena_allocator = std.heap.ArenaAllocator.init(self.allocator.*);
+        var allocator = arena_allocator.allocator();
         defer arena_allocator.deinit();
 
         const current_time = std.time.timestamp();
@@ -226,7 +226,7 @@ const Logger = struct {
         var zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
 
         if (self.installed_prefix) {
-            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+            zipped_prefix = self.log_prefix(&allocator, log_level);
         }
 
         const to_write = std.fmt.allocPrint(allocator, "{s}{s}\n", .{ zipped_prefix, zipped_message }) catch |the_error| {
@@ -246,7 +246,7 @@ const Logger = struct {
         const log_level: []const u8 = "FATAL";
 
         var arena_allocator = std.heap.ArenaAllocator.init(self.allocator);
-        const allocator = arena_allocator.allocator();
+        var allocator = arena_allocator.allocator();
         defer arena_allocator.deinit();
 
         const current_time = std.time.timestamp();
@@ -256,7 +256,7 @@ const Logger = struct {
         var zipped_prefix: []const u8 = try std.fmt.allocPrint(allocator, prefix, .{ namespace, formatted_time, std.Thread.getCurrentId() });
 
         if (self.installed_prefix) {
-            zipped_prefix = self.log_prefix(@constCast(&allocator), log_level);
+            zipped_prefix = self.log_prefix(&allocator, log_level);
         }
 
         const zipped_message: []const u8 = try std.fmt.allocPrint(allocator, message, args);
@@ -292,7 +292,7 @@ pub fn initializeLogging(allocator: *std.mem.Allocator, logfile_options: Logfile
     const file: []const u8 = try std.fmt.allocPrint(allocator.*, "{s}/{s}-{d}.log", .{ logfile_options.absolute_path, logfile_options.file_name, timestamp });
     defer allocator.free(file);
 
-    Log.allocator = allocator.*;
+    Log.allocator = allocator;
     Log.log_file = std.fs.createFileAbsolute(file, .{ .read = true }) catch {
         return undefined;
     };
@@ -312,10 +312,9 @@ pub fn initializeLogging(allocator: *std.mem.Allocator, logfile_options: Logfile
     defer Log.access_mutex.unlock();
 }
 
-pub fn installLogPrefix(allocator: *std.mem.Allocator, log_prefix: *const fn (allocator: *std.mem.Allocator, log_level: []const u8) []const u8) !void {
-    _ = allocator;
+pub fn installLogPrefix(log_prefix: *const fn (allocator: *std.mem.Allocator, log_level: []const u8) []const u8) !void {
     Log.installed_prefix = true;
-    Log.log_prefix = @constCast(&log_prefix).*;
+    Log.log_prefix = log_prefix;
 }
 
 test "LogTimestampTest" {

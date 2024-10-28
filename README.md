@@ -39,9 +39,9 @@ You can get started by initializing the logging file:
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = gpa.allocator();
+    var allocator = gpa.allocator();
 
-    try Logger.initializeLogging(@constCast(&allocator), 
+    try Logger.initializeLogging(&allocator, 
         .{ .absolute_path = "/home/isaacwestaway/Documents/zig/zlog/", .file_name = "log" },
         .{ .severity = .info }
     );
@@ -92,13 +92,13 @@ pub fn main() !void {
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = gpa.allocator();
+    var allocator = gpa.allocator();
 
-    try Logger.initializeLogging(@constCast(&allocator), 
+    try Logger.initializeLogging(&allocator, 
         .{ .absolute_path = "/home/isaacwestaway/Documents/zig/zlog/", .file_name = "log" }, 
         .{ .severity = .info }
     );
-    try Logger.installLogPrefix(@constCast(&allocator), &testLogPrefix);
+    try Logger.installLogPrefix(&testLogPrefix);
     defer Logger.Log.close();
 
     var Log = Logger.Log;
