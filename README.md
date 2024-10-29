@@ -22,12 +22,8 @@ zig fetch --save git+https://github.com/isaac-westaway/zlog
 
 Then add the dependency in your `build.zig` file
 ```zig
-const zlog = b.dependency("zlog", .{
-    .target = target,
-    .optimize = optimize
-}).module("zlog");
-
-exe.root_module.addImport(zlog);
+const zlog = b.dependency("zlog", .{ .target = target, .optimize = optimize });
+exe.root_module.addImport("zlog", zlog.module("zlog"));
 ```
 
 Usage
@@ -52,7 +48,6 @@ pub fn main() !void {
 And then log a message to the logfile:
 ```zig
 ...
-
 var Log = Logger.Log;
 
 const str: []const u8 = "world";
@@ -78,7 +73,6 @@ FATAL-MAIN-2024/9/17-0:31:57-T250650:I am Crashing Now!
 
 ### Using a custom prefix
 ```zig
-
 // The callback must have these two arguments
 fn testLogPrefix(allocator: *std.mem.Allocator, log_level: []const u8) []const u8 {
     const current_time = Logger.timestampToDatetime(allocator.*, std.time.timestamp());

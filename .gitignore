@@ -1,7 +1,7 @@
 .zig-cache
 zig-out
-
-example/.zig-ccache
-examples/build.zig.zon
-
 build.zig.zon
+
+example/.zig-cache
+example/build.zig.zon
+example/log-*
