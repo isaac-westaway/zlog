@@ -4,20 +4,20 @@ const builtin = @import("builtin");
 const zlog = @import("zlog");
 
 // customize log prefix
-// fn logPrefix(allocator: *const std.mem.Allocator, log_level: []const u8) []const u8 {
-//     const current_time = zlog.timestampToDatetime(allocator.*, std.time.timestamp());
-//     const str: []u8 = std.fmt.allocPrint(allocator.*, "{s}: Some Extra Messages!, such as the time: {s}: ", .{ log_level, current_time }) catch {
-//         return undefined;
-//     };
-//     return str;
-// }
+fn logPrefix(allocator: *const std.mem.Allocator, log_level: []const u8) []const u8 {
+    const current_time = zlog.timestampToDatetime(allocator.*, std.time.timestamp());
+    const str: []u8 = std.fmt.allocPrint(allocator.*, "{s}: Some Extra Messages!, such as the time: {s}: ", .{ log_level, current_time }) catch {
+        return undefined;
+    };
+    return str;
+}
 
 // the simplest log prefix, no extra messages...
-fn logPrefix(allocator: *const std.mem.Allocator, log_level: []const u8) []const u8 {
-    _ = log_level;
-    _ = allocator;
-    return ""; // no prefix
-}
+// fn logPrefix(allocator: *const std.mem.Allocator, log_level: []const u8) []const u8 {
+//     _ = log_level;
+//     _ = allocator;
+//     return ""; // no prefix
+// }
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -28,6 +28,14 @@ pub fn main() !void {
     try zlog.installLogPrefix(&logPrefix);
 
     defer zlog.Log.close();
+
+    const timestamp: i64 = std.time.timestamp();
+    const current_time: []const u8 = zlog.timestampToDatetime(allocator, timestamp);
+    defer allocator.free(current_time);
+
+    try zlog.Log.info("MAIN", "Hello World!", .{});
+    try zlog.Log.info("MAIN", "Current Timestamp: {d}", .{timestamp});
+    try zlog.Log.err("MAIN", "It is: {s}", .{current_time});
 
     try zlog.Log.info("MAIN", "multithreading!", .{});
 
