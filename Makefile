@@ -6,10 +6,6 @@ files = src/Logger.zig
 build:
 	zig build
 
-.PHONY: run
-run:
-	zig build run
-
 .PHONY: test
 test:
 	for file in $(files); do zig test $$file; done
@@ -17,6 +13,6 @@ test:
 .PHONY: clean
 clean:
 	rm -rf zig-out .zig-cache
-	rm -r *.log
+	rm -rf *.log
 
-all: build test clean
+all: build test

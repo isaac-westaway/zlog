@@ -1,26 +1,29 @@
 const std = @import("std");
 
-// Although this function looks imperative, note that its job is to
-// declaratively construct a build graph that will be executed by an external
-// runner.
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    _ = b.addModule("zlog", .{
-        .root_source_file = b.path("src/Logger.zig"),
+    const zlog_mod = b.addModule("zlog", .{
+        .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/Logger.zig"),
-        .target = target,
-        .optimize = optimize,
+    const zlog_lib = b.addLibrary(.{
+        .name = "zlog",
+        .root_module = zlog_mod,
+        .linkage = .static, // or .dynamic
     });
 
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
+    b.installArtifact(zlog_lib);
 
-    const test_step = b.step("test", "Unit testing");
-    test_step.dependOn(&run_lib_unit_tests.step);
+    const zlog_tests = b.addTest(.{
+        .root_module = zlog_mod,
+    });
+
+    const run_tests = b.addRunArtifact(zlog_tests);
+
+    const test_step = b.step("test", "run zlog unit tests");
+    test_step.dependOn(&run_tests.step);
 }
